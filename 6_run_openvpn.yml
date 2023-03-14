@@ -1,0 +1,36 @@
+---
+- name: Run openvpn
+  hosts: openvpn_server
+  become: yes
+
+  tasks:
+    - name: Copy make_config.sh from master to the openvpn_server
+      copy:
+        src: "{{ path_to_the_conffiles }}/make_config.sh"
+        dest: "/home/{{ ansible_ssh_user }}/client-configs/"
+        owner: "{{ ansible_ssh_user }}"
+        group: "{{ ansible_ssh_user }}"
+        mode: 0700
+        
+    - name: Copy base.conf from master to the openvpn_server
+      copy:
+        src: "{{ path_to_the_conffiles }}/base.conf"
+        dest: "/home/{{ ansible_ssh_user }}/client-configs/"
+        owner: "{{ ansible_ssh_user }}"
+        group: "{{ ansible_ssh_user }}"
+
+    - name: Copy server.conf from master to the openvpn_server
+      copy:
+        src: "{{ path_to_the_conffiles }}/server.conf"
+        dest: "/etc/openvpn/server/"
+
+    - name: Enable openvpn
+      service:
+        name: "openvpn-server@{{ server_name }}"
+        enabled: yes
+
+    - name: Start openvpn
+      service:
+        name: "openvpn-server@{{ server_name }}"
+        state: started
+

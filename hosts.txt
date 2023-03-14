@@ -1,0 +1,4 @@
+[all_hosts]
+ca_server      ansible_host=164.92.134.44 ansible_ssh_private_key_file=/home/doge/.ssh/id_rsa_vm1
+openvpn_server ansible_host=165.232.66.96 ansible_ssh_private_key_file=/home/doge/.ssh/id_rsa_vps
+

@@ -1,0 +1,8 @@
+---
+ansible_ssh_user	      : centosuser
+ansible_sudo_pass	      : usercentos
+easy_rsa_home                 : "/home/{{ ansible_ssh_user }}/easy-rsa"
+server_name                   : server
+pass_to_build_ca	      : pass
+client_name                   : client1
+path_to_the_conffiles         : /home/doge/config-files-vpn

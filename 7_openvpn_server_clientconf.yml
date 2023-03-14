@@ -1,0 +1,20 @@
+---
+- name: Last configuring for clients
+  hosts: openvpn_server
+  
+  tasks:
+    - name: Make directory
+      file:
+        path: "/home/{{ ansible_ssh_user }}/client-configs/files"
+        state: directory
+
+    - name: Run the script to configure clients configuration
+      shell: "./make_config.sh {{ client_name }}"
+      args:
+        chdir: "/home/{{ ansible_ssh_user }}/client-configs/"
+     
+    - name: Fetch ".ovpn" file from the openvpn server to the master
+      fetch:
+        src: "/home/{{ ansible_ssh_user }}/client-configs/files/{{ client_name }}.ovpn"
+        dest: "{{ path_to_the_conffiles }}/"
+        flat: true

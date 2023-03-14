@@ -1,0 +1,101 @@
+---
+- name: Configure OpenVPN server
+  hosts: openvpn_server
+
+  tasks:
+  - name: Install some packages
+    block: 
+      - name: Update all packages  
+        yum:
+          name: '*'
+          state: latest
+
+      - name: Install pip
+        yum:
+          name: pip
+          state: latest
+
+      - name: Install pexpect
+        pip:
+          name: pexpect
+          state: latest
+
+      - name: Install epel-release
+        yum:
+          name: epel-release
+          state: latest
+
+      - name: Install easy-rsa
+        yum:
+          name: easy-rsa
+          state: latest
+    
+      - name: Install openvpn
+        yum:
+          name: openvpn
+          state: latest 
+    become: true
+
+  - name: Prepare infrastructure
+    block:
+      - name: Make the directory "{{ easy_rsa_home }}"
+        file:
+          path: "{{ easy_rsa_home }}"
+          state: directory
+
+      - name: Create the symbolic links
+        file:
+          src: "/usr/share/easy-rsa/3/{{ item.src }}"
+          dest: "{{ easy_rsa_home }}/{{ item.dest }}"
+          state: link
+        loop:
+          - { src: easyrsa,             dest: easyrsa }
+          - { src: openssl-easyrsa.cnf, dest: openssl-easyrsa.cnf }
+          - { src: x509-types,          dest: x509-types }
+
+      - name: Change permissions for "{{ easy_rsa_home }}"
+        file:
+          path: "{{ easy_rsa_home }}"
+          owner: "{{ ansible_user }}"
+          mode: 0700 
+ 
+      - name: Create the file vars
+        copy:
+          dest: "{{ easy_rsa_home}}/vars"
+          content: |
+            set_var EASYRSA_ALGO           "ec"
+            set_var EASYRSA_DIGEST         "sha512"
+
+  - name: Run scripts
+    block:
+      - name: Run the script inip-pki
+        expect:
+          command: ./easyrsa init-pki
+          responses:
+            '(.*)removal(.*)':  "no"
+          chdir: "{{ easy_rsa_home }}/"
+
+      - name: Run the script gen-req
+        expect: 
+          command: "./easyrsa gen-req {{ server_name }} nopass"
+          responses: 
+            '(.*)Common Name(.*)': ""
+            '(.*)Confirm key over(.*)': "no"
+          chdir: "{{ easy_rsa_home }}/"
+
+      - name: Run the script genkey
+        shell: "openvpn --genkey secret ta.key"
+        args:
+          chdir: "{{ easy_rsa_home }}/"
+    ignore_errors: yes
+
+  - name: Copy keys
+    copy:
+      src: "{{ item }}"
+      dest: /etc/openvpn/server/
+      remote_src: true
+    loop:
+      - "{{ easy_rsa_home }}/ta.key"
+      - "{{ easy_rsa_home }}/pki/private/{{ server_name }}.key"
+    become: true
+

@@ -1,0 +1,86 @@
+---
+- name: Configure certificate authority server
+  hosts: ca_server
+
+  tasks:
+  - name: Install some packages
+    block: 
+      - name: Update all packages  
+        yum:
+          name: '*'
+          state: latest
+
+      - name: Install pip
+        yum:
+          name: pip
+          state: latest
+
+      - name: Install pexpect
+        pip:
+          name: pexpect
+          state: latest
+    become: true
+
+  - name: Install Extra Packages for Enterprise Linux
+    block:
+      - name: Install epel-release
+        yum:
+          name: epel-release
+          state: latest
+
+      - name: Install easy-rsa
+        yum:
+          name: easy-rsa
+          state: latest 
+    become: true
+
+  - name: Prepare infrastructure
+    block:
+      - name: Make the directory "{{ easy_rsa_home }}"
+        file:
+          path: "{{ easy_rsa_home }}"
+          state: directory
+
+      - name: Create the symbolic links
+        file:
+          src: "/usr/share/easy-rsa/3/{{ item.src }}"
+          dest: "{{ easy_rsa_home }}/{{ item.dest }}"
+          state: link
+        loop:
+          - { src: easyrsa,             dest: easyrsa }
+          - { src: openssl-easyrsa.cnf, dest: openssl-easyrsa.cnf }
+          - { src: x509-types,          dest: x509-types }
+
+      - name: Change permissions for "{{ easy_rsa_home }}"
+        file:
+          path: "{{ easy_rsa_home }}"
+          mode: 0700 
+ 
+      - name: Create the file vars
+        copy:
+          dest: "{{ easy_rsa_home}}/vars"
+          content: |
+            set_var EASYRSA_REQ_COUNTRY    "US"
+            set_var EASYRSA_REQ_PROVINCE   "NewYork"
+            set_var EASYRSA_REQ_CITY       "New York City"
+            set_var EASYRSA_REQ_ORG        "DigitalOcean"
+            set_var EASYRSA_REQ_EMAIL      "admin@example.com"
+            set_var EASYRSA_REQ_OU         "Community"
+
+  - name: Run scripts
+    block:
+      - name: Run the script inip-pki
+        expect:
+          command: ./easyrsa init-pki
+          responses:
+           '(.*)removal(.*)':  "no"
+          chdir: "{{ easy_rsa_home }}/"
+
+      - name: Run the script build-ca
+        expect: 
+          command: ./easyrsa build-ca nopass
+          responses: 
+            '(.*)Enter PEM pass phrase(.*)': "{{ pass_to_build_ca }}"
+            '(.*)Common Name(.*)': ""
+          chdir: "{{ easy_rsa_home }}/"
+    ignore_errors: yes

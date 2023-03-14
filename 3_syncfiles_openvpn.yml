@@ -1,0 +1,59 @@
+---
+- name: Sync files
+  hosts: all
+
+  tasks:
+  - name: Copying files
+    block:
+    - name: Copy ".req" file from the openvpn to the master
+      fetch:
+        src: "{{ easy_rsa_home }}/pki/reqs/{{ server_name }}.req"
+        dest: /tmp/
+        flat: yes
+      when: inventory_hostname == 'openvpn_server'
+
+    - name: Copy ".req" file from the master to ca_server
+      copy:
+        src: "/tmp/{{ server_name }}.req"
+        dest: /tmp/
+      when: inventory_hostname == 'ca_server'
+    become: true
+
+  - name: Running scripts
+    block:
+      - name: Run the script import-req
+        shell: "./easyrsa import-req /tmp/{{ server_name }}.req {{ server_name }}"
+        args:
+          chdir: "{{ easy_rsa_home }}/"
+
+      - name: Run the script sign-req
+        expect:
+          command: "./easyrsa sign-req server {{ server_name }}"
+          responses:
+            '(.*)Confirm request details(.*)': "yes"
+            '(.*)Enter pass phrase(.*)': "{{ pass_to_build_ca }}"
+          chdir: "{{ easy_rsa_home }}/"
+    when: inventory_hostname == 'ca_server'
+    ignore_errors: yes
+
+  - name: Copy files back to the openvpn server
+    block:
+      - name: Copy ".crt" files from the ca_server to the master
+        fetch:
+          src: "{{ item }}"
+          dest: /tmp/
+          flat: yes
+        loop:
+          - "{{ easy_rsa_home }}/pki/issued/{{ server_name }}.crt"
+          - "{{ easy_rsa_home }}/pki/ca.crt"
+        when: inventory_hostname == 'ca_server'
+
+      - name: Copy ".crt" files from the master to openvpn_server
+        copy:
+          src: "{{ item }}"
+          dest: /etc/openvpn/server
+        loop:
+          - "/tmp/{{ server_name }}.crt"
+          - "/tmp/ca.crt"
+        when: inventory_hostname == 'openvpn_server'
+    become: true

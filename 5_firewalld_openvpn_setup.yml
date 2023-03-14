@@ -1,0 +1,60 @@
+---
+- name: Configure firewalld for openvpn
+  hosts: openvpn_server
+  become: true
+
+  tasks:
+    - name: Get the interface
+      shell: "ip route | awk '/^default via/ {print $5}'"
+#      shell: 'ip route | head -n 1 | cut -d" " -f5'
+      register: eth
+    
+    - name: Print interface
+      debug:
+        var: eth.stdout
+
+    - name: Add tun0 interface to the trusted zone
+      firewalld:
+        zone: trusted
+        interface: tun0
+        state: enabled
+        permanent: true
+      notify:
+        - Reload firewalld
+
+    - name: Add service openvpn to the active zone
+      firewalld:
+        service: openvpn
+        state: enabled
+        permanent: true
+      notify:
+        - Reload firewalld 
+
+    - name: Add service openvpn to the trusted zone
+      firewalld:
+        zone: trusted
+        service: openvpn
+        state: enabled
+        permanent: true
+      notify:
+        - Reload firewalld 
+
+    - name: Add masquerade
+      firewalld:
+        masquerade: true
+        state: enabled
+        permanent: true
+      notify:
+        - Reload firewalld
+
+    - name: Set others rule for the interface
+      shell: "firewall-cmd --permanent --direct --passthrough ipv4 -t nat -A POSTROUTING -s 10.8.0.0/24 -o {{ eth.stdout }} -j MASQUERADE"
+      notify:
+        - Reload firewalld
+
+  handlers:
+    - name: Reload firewalld
+      service:
+        name: firewalld
+        state: reloaded
+

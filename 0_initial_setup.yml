@@ -1,0 +1,62 @@
+---
+- name: Initial setup
+  hosts: all
+  become: true
+
+  tasks:
+  - name: Update all packages
+    block: 
+      - name: Update a server
+        yum:
+          name: '*'
+          state: latest
+
+  - name: Configure firewall
+    block:        
+      - name: Install firewalld
+        yum:
+          name: firewalld
+          state: latest
+
+      - name: Start firewalld
+        service:
+          name: firewalld
+          state: started
+
+      - name: Enable firewalld
+        service:
+          name: firewalld
+          enabled: true
+
+      - name: Permit traffic in default zone
+        firewalld:
+          service: "{{ item }}" 
+          permanent: true
+          state: enabled
+        loop:
+          - http
+          - https
+        notify:
+          - Reload firewalld
+
+  - name: Set timezone and configure ntp synchronization
+    block:
+      - name: Set timezone
+        community.general.timezone:
+          name: Europe/Minsk
+
+      - name: Install chrony
+        yum:
+          name: chrony
+          state: latest
+
+      - name: Start chrony
+        service:
+          name: chronyd
+          state: started
+
+  handlers:
+    - name: Reload firewalld
+      service:
+        name: firewalld
+        state: reloaded
