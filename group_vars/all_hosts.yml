@@ -1,8 +1,8 @@
 ---
-ansible_ssh_user	      : centosuser
-ansible_sudo_pass	      : usercentos
-easy_rsa_home                 : "/home/{{ ansible_ssh_user }}/easy-rsa"
-server_name                   : server
-pass_to_build_ca	      : pass
-client_name                   : client1
-path_to_the_conffiles         : /home/doge/config-files-vpn
+ansible_ssh_user	      : centosuser				# your username on the servers with sudo privilage
+ansible_sudo_pass	      : usercentos				# password for sudo privilage
+easy_rsa_home                 : "/home/{{ ansible_ssh_user }}/easy-rsa" # path to the maked easy-rsa directory, do not change this statemant
+server_name                   : server			   		# name of OpenVPN server, do not change it
+pass_to_build_ca	      : pass					# password for signing certificates on Certificate Authority server
+client_name                   : client1					# name of client, recomend not change it
+path_to_the_conffiles         : /home/doge/config-files-vpn		# path to the "base.conf", "server.conf", "make_config.sh" files
